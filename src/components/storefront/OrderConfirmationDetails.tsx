@@ -7,10 +7,12 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { siteConfig } from "@/config/site";
 import type { CheckoutFormValues } from "@/lib/checkout";
+import { formatPrice } from "@/lib/utils";
 import { buildOrderWhatsAppMessage, getOrderWhatsAppUrl } from "@/lib/whatsapp";
 import { getPublicBusinessSettingsClient } from "@/services/storefront/business-client";
 import { createOrder } from "@/services/storefront/orders";
 import { useCartStore } from "@/store/cart-store";
+import { useCheckoutStore } from "@/store/checkout-store";
 
 function ReviewSection({
   title,
@@ -57,6 +59,20 @@ export function OrderConfirmationDetails({ values }: { values: CheckoutFormValue
   const items = useCartStore((state) => state.items);
   const itemCount = useCartStore((state) => state.getTotalItems());
   const subtotal = useCartStore((state) => state.getSubtotal());
+
+  // Envío (Sprint 6.2): ya resuelto por ShippingCitySelect en /checkout y
+  // guardado en useCheckoutStore -- acá solo se lee para pasarlo a
+  // createOrder(). En "Retiro en tienda" no hay envío que guardar.
+  // Nombrada `shippingSelection` (no `shipping`, ya usado más abajo para
+  // `siteConfig.checkoutPage.shippingInformation`) para no chocar con esa
+  // declaración existente.
+  const shippingCost = useCheckoutStore((state) => state.shippingCost);
+  const shippingRateId = useCheckoutStore((state) => state.shippingRateId);
+  const shippingRateName = useCheckoutStore((state) => state.shippingRateName);
+  const shippingEstimatedDays = useCheckoutStore((state) => state.shippingEstimatedDays);
+  const shippingSelection = isPickup
+    ? null
+    : { cost: shippingCost, rateId: shippingRateId, rateName: shippingRateName };
 
   // El número de WhatsApp viene de business_settings (Supabase), no de
   // config/business.ts -- esta página es "use client" de punta a punta
@@ -116,7 +132,7 @@ export function OrderConfirmationDetails({ values }: { values: CheckoutFormValue
     const whatsappTab = window.open("", "_blank");
 
     try {
-      await createOrder(values, items, subtotal, whatsappMessage);
+      await createOrder(values, items, subtotal, whatsappMessage, shippingSelection);
       setOrderSaved(true);
       if (whatsappTab) {
         whatsappTab.location.href = whatsappUrl;
@@ -173,6 +189,20 @@ export function OrderConfirmationDetails({ values }: { values: CheckoutFormValue
               <ReviewRow label={shipping.addressLabel} value={values.address} />
               {values.reference ? (
                 <ReviewRow label={shipping.referenceLabel} value={values.reference} />
+              ) : null}
+              <ReviewRow
+                label={shipping.shippingCostLabel}
+                value={
+                  shippingSelection?.cost !== null && shippingSelection?.cost !== undefined
+                    ? formatPrice(shippingSelection.cost)
+                    : shipping.shippingCostToConfirm
+                }
+              />
+              {shippingEstimatedDays ? (
+                <ReviewRow
+                  label={shipping.shippingEstimatedDaysLabel}
+                  value={shippingEstimatedDays}
+                />
               ) : null}
             </>
           ) : null}

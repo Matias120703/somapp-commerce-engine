@@ -7,11 +7,15 @@ import { siteConfig } from "@/config/site";
 import { sectionContainerVariants, sectionItemVariants } from "@/lib/motion";
 import { formatPrice } from "@/lib/utils";
 import { useCartStore } from "@/store/cart-store";
+import { useCheckoutStore } from "@/store/checkout-store";
 
 /**
- * Toda la información sale del Cart Store: nada se recalcula acá.
- * Cuando exista checkout real, el envío se conecta reemplazando solo
- * la fila de "shippingPlaceholder" por el valor calculado.
+ * Los productos/subtotal salen del Cart Store, sin cambios. El envío
+ * (Sprint 6.2) sale de useCheckoutStore -- lo calcula ShippingCitySelect en
+ * cuanto se elige una ciudad -- reemplazando el placeholder estático de
+ * siempre solo una vez que `shippingChecked` es true; hasta entonces (o en
+ * "Retiro en tienda", que no tiene envío) se ve exactamente igual que antes
+ * de este sprint.
  */
 export function CheckoutSummary() {
   const shouldReduceMotion = useReducedMotion();
@@ -20,6 +24,18 @@ export function CheckoutSummary() {
   const items = useCartStore((state) => state.items);
   const itemCount = useCartStore((state) => state.getTotalItems());
   const subtotal = useCartStore((state) => state.getSubtotal());
+
+  const isPickup = useCheckoutStore((state) => state.values.deliveryMethod === "pickup");
+  const shippingChecked = useCheckoutStore((state) => state.shippingChecked);
+  const shippingCost = useCheckoutStore((state) => state.shippingCost);
+
+  const showRealShipping = !isPickup && shippingChecked;
+  const shippingLine = !showRealShipping
+    ? t.shippingPlaceholder
+    : shippingCost !== null
+      ? formatPrice(shippingCost)
+      : siteConfig.checkoutPage.shippingInformation.shippingCostToConfirm;
+  const total = subtotal + (showRealShipping ? (shippingCost ?? 0) : 0);
 
   return (
     <motion.div
@@ -89,7 +105,7 @@ export function CheckoutSummary() {
         </div>
         <div className="flex items-center justify-between text-muted-foreground">
           <span>{t.shippingLabel}</span>
-          <span className="font-medium text-foreground">{t.shippingPlaceholder}</span>
+          <span className="font-medium text-foreground">{shippingLine}</span>
         </div>
       </motion.div>
 
@@ -98,7 +114,7 @@ export function CheckoutSummary() {
         className="flex items-center justify-between border-t border-border pt-4"
       >
         <span className="text-base font-semibold text-foreground">Total</span>
-        <span className="text-xl font-bold text-foreground">{formatPrice(subtotal)}</span>
+        <span className="text-xl font-bold text-foreground">{formatPrice(total)}</span>
       </motion.div>
     </motion.div>
   );

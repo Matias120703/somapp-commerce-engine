@@ -106,8 +106,28 @@ export function OrderDetailView({ orderId }: { orderId: string }) {
 
             <div className="flex flex-col gap-2 border-t border-border pt-4">
               <Row label="Subtotal" value={formatPrice(order.subtotal)} />
-              {order.shippingCost !== null ? (
-                <Row label="Envío" value={formatPrice(order.shippingCost)} />
+              {/*
+                Sprint 6.2: con Delivery, un `shippingCost` null significa
+                que la ciudad elegida no tenía ninguna tarifa configurada
+                -- se muestra "A confirmar" en vez de ocultar la fila, para
+                que el administrador vea de inmediato que tiene que
+                informar el costo manualmente. Con Retiro en tienda no
+                aplica ningún envío, esa fila no se muestra.
+              */}
+              {order.deliveryMethod === "delivery" ? (
+                <Row
+                  label="Envío"
+                  value={
+                    order.shippingCost !== null ? (
+                      formatPrice(order.shippingCost)
+                    ) : (
+                      <span className="text-amber-600 dark:text-amber-500">A confirmar</span>
+                    )
+                  }
+                />
+              ) : null}
+              {order.shippingRateName ? (
+                <Row label="Tarifa usada" value={order.shippingRateName} />
               ) : null}
               <div className="flex items-center justify-between gap-4 text-base font-semibold text-foreground">
                 <span>Total</span>

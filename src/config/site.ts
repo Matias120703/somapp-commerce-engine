@@ -115,6 +115,14 @@ export const siteConfig = {
       locationConfirmedLabel: "Ubicación seleccionada correctamente",
       latitudeShortLabel: "Lat",
       longitudeShortLabel: "Lng",
+      departmentPlaceholder: "Elegí un departamento",
+      cityPlaceholder: "Elegí una ciudad",
+      shippingCostLabel: "Costo de envío",
+      shippingEstimatedDaysLabel: "Tiempo estimado",
+      shippingCostLoading: "Calculando el costo de envío...",
+      shippingCostToConfirm: "A confirmar",
+      shippingCostToConfirmHint:
+        "El vendedor confirmará el costo del envío una vez recibido el pedido.",
     },
     paymentMethod: {
       title: "Método de pago",

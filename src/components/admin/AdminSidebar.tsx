@@ -10,6 +10,7 @@ import {
   Settings,
   ShoppingCart,
   Tags,
+  Truck,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -37,6 +38,7 @@ const NAV_ITEMS: AdminNavItem[] = [
   { label: "Pedidos", href: "/admin/pedidos", icon: ShoppingCart },
   { label: "Clientes", href: "/admin/clientes", icon: Users },
   { label: "Promociones", href: "/admin/promociones", icon: BadgePercent },
+  { label: "Logística", href: "/admin/logistica", icon: Truck },
   { label: "Configuración", href: "/admin/configuracion", icon: Settings },
 ];
 

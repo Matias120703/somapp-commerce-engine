@@ -54,6 +54,10 @@ export type AdminOrder = {
   notes: string | null;
   subtotal: number;
   shippingCost: number | null;
+  /** Nombre de la tarifa de envío usada (Sprint 6.2) -- snapshot de texto,
+   * null si el pedido es Retiro en tienda o si la ciudad no tenía ninguna
+   * tarifa configurada ("A confirmar", junto con shippingCost null). */
+  shippingRateName: string | null;
   total: number;
   whatsappMessage: string | null;
   itemCount: number;
@@ -76,6 +80,7 @@ type OrderRow = {
   notes: string | null;
   subtotal: number;
   shipping_cost: number | null;
+  shipping_rate_name: string | null;
   total: number;
   whatsapp_message: string | null;
   created_at: string;
@@ -93,7 +98,7 @@ type OrderRow = {
 const ORDER_SELECT = `
   id, order_number, status, delivery_method, payment_method,
   department, city, neighborhood, address, reference, latitude, longitude, notes,
-  subtotal, shipping_cost, total, whatsapp_message, created_at,
+  subtotal, shipping_cost, shipping_rate_name, total, whatsapp_message, created_at,
   customers ( first_name, last_name, phone, email ),
   order_items ( id, product_id, product_name, unit_price, quantity, subtotal )
 `;
@@ -119,6 +124,7 @@ function mapOrderRow(row: OrderRow): AdminOrder {
     notes: row.notes,
     subtotal: Number(row.subtotal),
     shippingCost: row.shipping_cost !== null ? Number(row.shipping_cost) : null,
+    shippingRateName: row.shipping_rate_name,
     total: Number(row.total),
     whatsappMessage: row.whatsapp_message,
     itemCount: row.order_items.reduce((sum, item) => sum + item.quantity, 0),

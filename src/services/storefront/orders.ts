@@ -22,13 +22,29 @@ export type CreateOrderResult = {
   orderNumber: number;
 };
 
+/** Lo que ShippingCitySelect ya resolvió y dejó en useCheckoutStore (Sprint
+ * 6.2) -- null en "Retiro en tienda" (sin envío) o si todavía no se buscó
+ * ninguna tarifa. `cost` a su vez puede ser null con `rateId`/`rateName`
+ * también null: la ciudad elegida no tiene ninguna tarifa que la cubra
+ * ("A confirmar") -- se guarda tal cual, nunca se inventa un número. */
+export type ShippingSelection = {
+  cost: number | null;
+  rateId: string | null;
+  rateName: string | null;
+};
+
 export async function createOrder(
   values: CheckoutFormValues,
   items: CartLineItem[],
   subtotal: number,
-  whatsappMessage: string
+  whatsappMessage: string,
+  shipping: ShippingSelection | null
 ): Promise<CreateOrderResult> {
   const supabase = createClient();
+
+  // Sprint 6.2: el total pasa a incluir el costo de envío real (0 si no
+  // aplica -- Retiro en tienda, o ciudad sin tarifa configurada todavía).
+  const total = subtotal + (shipping?.cost ?? 0);
 
   const { data, error } = await supabase.rpc("create_order", {
     p_first_name: values.firstName,
@@ -45,12 +61,8 @@ export async function createOrder(
     p_latitude: values.deliveryMethod === "delivery" ? values.latitude : null,
     p_longitude: values.deliveryMethod === "delivery" ? values.longitude : null,
     p_notes: values.notes || null,
-    // `total` = `subtotal` hoy: no existe cálculo real de envío todavía
-    // (siteConfig.checkoutPage.summary.shippingPlaceholder, "se calcula
-    // en el próximo paso") -- `orders.shipping_cost` queda null, lista
-    // para cuando ese cálculo exista, sin que este sprint lo invente.
     p_subtotal: subtotal,
-    p_total: subtotal,
+    p_total: total,
     p_whatsapp_message: whatsappMessage,
     p_items: items.map((item) => ({
       product_id: item.product.id,
@@ -59,6 +71,9 @@ export async function createOrder(
       quantity: item.quantity,
       subtotal: item.product.price * item.quantity,
     })),
+    p_shipping_cost: shipping?.cost ?? null,
+    p_shipping_rate_id: shipping?.rateId ?? null,
+    p_shipping_rate_name: shipping?.rateName ?? null,
   });
 
   if (error) throw new Error(error.message);

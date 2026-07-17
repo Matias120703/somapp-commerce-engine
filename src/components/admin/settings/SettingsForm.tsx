@@ -7,13 +7,11 @@ import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/shared/FormField";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { BrandingAssetField, type PendingBrandingAsset } from "@/components/admin/settings/BrandingAssetField";
+import { type PendingBrandingAsset } from "@/components/admin/settings/BrandingAssetField";
 import { useSettings } from "@/hooks/useSettings";
 import {
   deleteBrandingAsset,
   uploadBrandingAsset,
-  MAX_BRANDING_FILE_SIZE_BYTES,
-  MAX_BRANDING_FILE_SIZE_MB,
   type SettingsFormInput,
 } from "@/services/settings";
 
@@ -38,6 +36,16 @@ function SettingsSection({ title, description, children }: { title: string; desc
  * el sprint son puramente visuales (SettingsSection), no forms
  * independientes. Mismo patrón que ProductForm: estado local por campo,
  * validar, guardar, volver.
+ *
+ * Sprint 6.3: la tarjeta "Branding" (Logo + Favicon) se ocultó de esta
+ * pantalla -- ver CLAUDE.md sección 9, Fase 23. `pendingLogo`/
+ * `pendingFavicon`/`removeLogo`/`removeFavicon` y la lógica de
+ * subida/borrado en `handleSubmit` se dejaron intactas a propósito (nunca
+ * se disparan sin la UI que las controlaba, pero la funcionalidad en sí
+ * -- y `BrandingAssetField.tsx` -- siguen existiendo sin tocar, listas
+ * para reconectarse). `logoSizeError`/`faviconSizeError` sí se quitaron:
+ * solo existían para mostrarse en esa UI, sin ella quedaban sin ningún
+ * lugar donde leerse.
  */
 export function SettingsForm() {
   const router = useRouter();
@@ -48,8 +56,6 @@ export function SettingsForm() {
   const [pendingFavicon, setPendingFavicon] = useState<PendingBrandingAsset>(null);
   const [removeLogo, setRemoveLogo] = useState(false);
   const [removeFavicon, setRemoveFavicon] = useState(false);
-  const [logoSizeError, setLogoSizeError] = useState<string | null>(null);
-  const [faviconSizeError, setFaviconSizeError] = useState<string | null>(null);
 
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -166,59 +172,6 @@ export function SettingsForm() {
             onChange={(event) => update("storeDescription", event.target.value || null)}
           />
         </FormField>
-      </SettingsSection>
-
-      <SettingsSection
-        title="Branding"
-        description="Logo y favicon, alojados en Supabase Storage (bucket «branding»)."
-      >
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-          <BrandingAssetField
-            id="logo"
-            label="Logo"
-            accept="image/png,image/jpeg,image/webp,image/svg+xml"
-            currentUrl={removeLogo ? null : form.logoUrl}
-            pending={pendingLogo}
-            error={logoSizeError}
-            onSelectFile={(file) => {
-              if (file.size > MAX_BRANDING_FILE_SIZE_BYTES) {
-                setLogoSizeError(`El archivo supera el límite de ${MAX_BRANDING_FILE_SIZE_MB} MB.`);
-                return;
-              }
-              setLogoSizeError(null);
-              setRemoveLogo(false);
-              setPendingLogo({ file, previewUrl: URL.createObjectURL(file) });
-            }}
-            onRemove={() => {
-              setLogoSizeError(null);
-              setPendingLogo(null);
-              setRemoveLogo(true);
-            }}
-          />
-
-          <BrandingAssetField
-            id="favicon"
-            label="Favicon"
-            accept="image/png,image/x-icon,image/vnd.microsoft.icon,image/svg+xml"
-            currentUrl={removeFavicon ? null : form.faviconUrl}
-            pending={pendingFavicon}
-            error={faviconSizeError}
-            onSelectFile={(file) => {
-              if (file.size > MAX_BRANDING_FILE_SIZE_BYTES) {
-                setFaviconSizeError(`El archivo supera el límite de ${MAX_BRANDING_FILE_SIZE_MB} MB.`);
-                return;
-              }
-              setFaviconSizeError(null);
-              setRemoveFavicon(false);
-              setPendingFavicon({ file, previewUrl: URL.createObjectURL(file) });
-            }}
-            onRemove={() => {
-              setFaviconSizeError(null);
-              setPendingFavicon(null);
-              setRemoveFavicon(true);
-            }}
-          />
-        </div>
       </SettingsSection>
 
       <SettingsSection

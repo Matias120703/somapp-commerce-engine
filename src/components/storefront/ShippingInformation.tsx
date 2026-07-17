@@ -1,5 +1,6 @@
 import { FormField } from "@/components/shared/FormField";
 import { LocationPicker } from "@/components/storefront/LocationPicker";
+import { ShippingCitySelect } from "@/components/storefront/ShippingCitySelect";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { siteConfig } from "@/config/site";
@@ -48,25 +49,12 @@ export function ShippingInformation({
         mientras están ocultos.
       */}
       <div className={cn("grid grid-cols-1 gap-4 sm:grid-cols-2", isPickup && "hidden")}>
-        <FormField label={t.departmentLabel} htmlFor="department" required={!isPickup}>
-          <Input
-            id="department"
-            required={!isPickup}
-            disabled={isPickup}
-            value={values.department}
-            onChange={(event) => onChange("department", event.target.value)}
-          />
-        </FormField>
-
-        <FormField label={t.cityLabel} htmlFor="city" required={!isPickup}>
-          <Input
-            id="city"
-            required={!isPickup}
-            disabled={isPickup}
-            value={values.city}
-            onChange={(event) => onChange("city", event.target.value)}
-          />
-        </FormField>
+        <ShippingCitySelect
+          department={values.department}
+          city={values.city}
+          disabled={isPickup}
+          onChange={onChange}
+        />
 
         <FormField label={t.neighborhoodLabel} htmlFor="neighborhood" required={!isPickup}>
           <Input
