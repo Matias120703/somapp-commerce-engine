@@ -2,7 +2,11 @@ export type Category = {
   id: string;
   name: string;
   slug: string;
-  /** Reservado para la imagen real del cliente (aún no se usa: se renderiza un placeholder). */
+  /** URL absoluta de Supabase Storage (Sprint 6.6) cuando la categoría
+   * tiene una foto real subida desde el Panel, o una ruta de placeholder
+   * heredada del seed original que nunca existió como archivo -- `CategoryCard`
+   * distingue ambos casos con `isRealImageUrl` y cae al placeholder
+   * decorativo cuando no hay foto real. */
   image: string;
   description: string;
   /** Color de acento opcional en hex, usado sutilmente en el placeholder de la tarjeta. */

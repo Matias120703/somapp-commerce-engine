@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { assertRowAffected } from "@/lib/supabase/assert-write";
 
 /**
  * Toda la comunicación admin con `stock_movements` (y las dos columnas
@@ -224,13 +225,18 @@ export async function updateInventorySettings(
   input: InventorySettingsInput
 ): Promise<void> {
   const supabase = createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("products")
     .update({
       sku: input.sku && input.sku.trim() ? input.sku.trim() : null,
       low_stock_threshold: input.lowStockThreshold,
     })
-    .eq("id", productId);
+    .eq("id", productId)
+    .select("id");
 
   if (error) throw new Error(error.message);
+  assertRowAffected(
+    data,
+    "No se pudo guardar el SKU/stock mínimo: no tenés permisos de administrador o el producto ya no existe."
+  );
 }

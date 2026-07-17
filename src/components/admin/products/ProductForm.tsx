@@ -16,8 +16,10 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { ProductImagesField, type PendingImage } from "@/components/admin/products/ProductImagesField";
+import { RichTextEditor } from "@/components/admin/products/RichTextEditor";
 import { useCategories } from "@/hooks/useCategories";
 import { useProduct } from "@/hooks/useProduct";
+import { isEmptyDescriptionHtml, sanitizeDescriptionHtml } from "@/lib/sanitize-html";
 import { slugify } from "@/lib/utils";
 import {
   addProductImages,
@@ -40,6 +42,12 @@ export function ProductForm(props: ProductFormProps) {
 
   const { categories, isLoading: isLoadingCategories } = useCategories();
   const { product, isLoading: isLoadingProduct } = useProduct(isEdit ? props.productId : "");
+
+  /** Carpeta del bucket `product-content` para imágenes/videos que se
+   * inserten en la descripción enriquecida (Sprint 6.3) -- el id real en
+   * edición, o uno generado una única vez (nunca se recalcula entre
+   * renders) mientras el producto todavía no existe en modo alta. */
+  const [descriptionScopeId] = useState(() => (isEdit ? props.productId : crypto.randomUUID()));
 
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
@@ -154,12 +162,13 @@ export function ProductForm(props: ProductFormProps) {
 
     setIsSubmitting(true);
     try {
+      const sanitizedDescription = sanitizeDescriptionHtml(description);
       const input = {
         categoryId,
         name: name.trim(),
         slug: slug.trim(),
         shortDescription: shortDescription.trim(),
-        description: description.trim(),
+        description: isEmptyDescriptionHtml(sanitizedDescription) ? "" : sanitizedDescription,
         price: Number(price),
         oldPrice: oldPrice.trim() ? Number(oldPrice) : null,
         stock: Number(stock),
@@ -241,12 +250,11 @@ export function ProductForm(props: ProductFormProps) {
       </FormField>
 
       <FormField label="Descripción completa" htmlFor="description">
-        <Textarea
-          id="description"
-          rows={5}
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-        />
+        <p className="mb-2 text-xs text-muted-foreground">
+          Se muestra únicamente en la página individual del producto -- no aparece en el catálogo,
+          las tarjetas de producto ni la Home.
+        </p>
+        <RichTextEditor value={description} onChange={setDescription} scopeId={descriptionScopeId} />
       </FormField>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">

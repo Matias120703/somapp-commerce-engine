@@ -5,6 +5,15 @@ export type Product = {
   /** Slug de una categoría definida en config/categories.ts */
   category: string;
   shortDescription: string;
+  /**
+   * Descripción enriquecida (HTML sanitizado), Sprint 6.3 -- solo la
+   * página individual de producto la muestra (`ProductRichDescription.tsx`).
+   * Opcional y sin valor en `products` (el array mock): `getPublicProducts()`/
+   * `getPublicHeroProducts()` no la seleccionan a propósito (evita traer
+   * HTML potencialmente pesado en el catálogo/Home/destacados) -- solo
+   * `getPublicProductBySlug()` la resuelve.
+   */
+  description?: string;
   price: number;
   oldPrice?: number;
   /**

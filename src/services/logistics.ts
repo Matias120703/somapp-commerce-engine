@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { assertRowAffected } from "@/lib/supabase/assert-write";
 
 /**
  * Toda la comunicación con `shipping_rates`/`shipping_rate_cities` (y la
@@ -185,8 +186,16 @@ export async function createShippingRate(input: ShippingRateFormInput): Promise<
 
 export async function updateShippingRate(id: string, input: ShippingRateFormInput): Promise<void> {
   const supabase = createClient();
-  const { error } = await supabase.from("shipping_rates").update(toRow(input)).eq("id", id);
+  const { data, error } = await supabase
+    .from("shipping_rates")
+    .update(toRow(input))
+    .eq("id", id)
+    .select("id");
   if (error) throw new Error(error.message);
+  assertRowAffected(
+    data,
+    "No se pudo actualizar la tarifa de envío: no tenés permisos de administrador o la tarifa ya no existe."
+  );
   await replaceShippingRateCities(id, input.cityIds);
 }
 
@@ -196,6 +205,10 @@ export async function updateShippingRate(id: string, input: ShippingRateFormInpu
  * `orders.shipping_rate_name` (snapshot) para seguir siendo legible. */
 export async function deleteShippingRate(id: string): Promise<void> {
   const supabase = createClient();
-  const { error } = await supabase.from("shipping_rates").delete().eq("id", id);
+  const { data, error } = await supabase.from("shipping_rates").delete().eq("id", id).select("id");
   if (error) throw new Error(error.message);
+  assertRowAffected(
+    data,
+    "No se pudo eliminar la tarifa de envío: no tenés permisos de administrador o la tarifa ya no existe."
+  );
 }

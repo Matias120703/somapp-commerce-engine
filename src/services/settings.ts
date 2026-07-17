@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { assertRowAffected } from "@/lib/supabase/assert-write";
 
 /**
  * Toda la comunicación con la fila única de `business_settings` vive acá
@@ -142,7 +143,7 @@ export async function getBusinessSettings(): Promise<AdminBusinessSettings> {
  */
 export async function updateBusinessSettings(input: SettingsFormInput): Promise<void> {
   const supabase = createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("business_settings")
     .update({
       store_name: input.storeName,
@@ -165,9 +166,11 @@ export async function updateBusinessSettings(input: SettingsFormInput): Promise<
       map_default_lng: input.mapDefaultLng,
       map_default_zoom: input.mapDefaultZoom,
     })
-    .eq("id", SETTINGS_ID);
+    .eq("id", SETTINGS_ID)
+    .select("id");
 
   if (error) throw new Error(error.message);
+  assertRowAffected(data, "No se pudo guardar la configuración: no tenés permisos de administrador.");
 }
 
 function getBrandingPathFromUrl(url: string): string | null {
@@ -207,6 +210,7 @@ export async function deleteBrandingAsset(url: string): Promise<void> {
   if (!path) return;
 
   const supabase = createClient();
-  const { error } = await supabase.storage.from(BRANDING_BUCKET).remove([path]);
+  const { data, error } = await supabase.storage.from(BRANDING_BUCKET).remove([path]);
   if (error) throw new Error(error.message);
+  assertRowAffected(data, "No se pudo eliminar el archivo: no tenés permisos de administrador.");
 }

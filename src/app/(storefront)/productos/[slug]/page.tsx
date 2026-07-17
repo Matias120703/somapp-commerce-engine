@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Breadcrumb } from "@/components/shared/Breadcrumb";
 import { ProductBuyBox } from "@/components/storefront/ProductBuyBox";
 import { ProductGallery } from "@/components/storefront/ProductGallery";
+import { ProductRichDescription } from "@/components/storefront/ProductRichDescription";
 import { RelatedProducts } from "@/components/storefront/RelatedProducts";
 import { siteConfig } from "@/config/site";
 import { getPublicBusinessSettings } from "@/services/storefront/business";
@@ -80,6 +81,8 @@ export default async function ProductPage({
           />
         </div>
       </div>
+
+      <ProductRichDescription description={product.description} />
 
       <RelatedProducts product={product} categories={categories} promotions={promotions} />
     </main>

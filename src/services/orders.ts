@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { assertRowAffected } from "@/lib/supabase/assert-write";
 
 /**
  * Toda la comunicación admin con `orders`/`order_items`/`customers` vive
@@ -165,6 +166,14 @@ export async function getOrderById(id: string): Promise<AdminOrder | null> {
 
 export async function updateOrderStatus(id: string, status: OrderStatus): Promise<void> {
   const supabase = createClient();
-  const { error } = await supabase.from("orders").update({ status }).eq("id", id);
+  const { data, error } = await supabase
+    .from("orders")
+    .update({ status })
+    .eq("id", id)
+    .select("id");
   if (error) throw new Error(error.message);
+  assertRowAffected(
+    data,
+    "No se pudo actualizar el estado del pedido: no tenés permisos de administrador o el pedido ya no existe."
+  );
 }

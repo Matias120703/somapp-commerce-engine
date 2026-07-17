@@ -16,9 +16,18 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { CATEGORY_ICON_OPTIONS } from "@/components/admin/categories/category-icons";
+import { CategoryImageField, type PendingCategoryImage } from "@/components/admin/categories/CategoryImageField";
 import { useCategory } from "@/hooks/useCategory";
 import { slugify } from "@/lib/utils";
-import { createCategory, isSlugTaken, updateCategory } from "@/services/categories";
+import {
+  ALLOWED_CATEGORY_IMAGE_TYPES,
+  MAX_CATEGORY_IMAGE_SIZE_BYTES,
+  MAX_CATEGORY_IMAGE_SIZE_MB,
+  createCategory,
+  isSlugTaken,
+  updateCategory,
+} from "@/services/categories";
+import { deleteCategoryImageFile, uploadCategoryImage } from "@/services/storage";
 
 type CategoryFormProps = { mode: "create" } | { mode: "edit"; categoryId: string };
 
@@ -29,8 +38,10 @@ const DEFAULT_COLOR = "#6B7280";
 /**
  * Mismo patrón que ProductForm (Fase 10): un solo componente decide alta o
  * edición según si recibe `categoryId`, slug autogenerado del nombre hasta
- * que se edita a mano. Sin campo de imagen -- el sprint no lo pidió (el
- * módulo de Categorías no gestiona `image_url` todavía, ver CLAUDE.md).
+ * que se edita a mano. Desde el Sprint 6.6, gestiona también la imagen de
+ * la categoría -- mismo patrón de "no subir nada hasta guardar" que
+ * `SettingsForm.tsx` con Logo/Favicon (`pendingImage`/`removeImage`,
+ * resueltos recién en `handleSubmit`).
  */
 export function CategoryForm(props: CategoryFormProps) {
   const router = useRouter();
@@ -38,10 +49,20 @@ export function CategoryForm(props: CategoryFormProps) {
 
   const { category, isLoading: isLoadingCategory } = useCategory(isEdit ? props.categoryId : "");
 
+  /** Carpeta del bucket `category-images` -- el id real en edición, o uno
+   * generado una única vez (nunca se recalcula entre renders) mientras la
+   * categoría todavía no existe en modo alta -- mismo criterio que
+   * `descriptionScopeId` en `ProductForm.tsx`. */
+  const [imageScopeId] = useState(() => (isEdit ? props.categoryId : crypto.randomUUID()));
+
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [description, setDescription] = useState("");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [pendingImage, setPendingImage] = useState<PendingCategoryImage>(null);
+  const [removeImage, setRemoveImage] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
   const [accentColor, setAccentColor] = useState(DEFAULT_COLOR);
   const [iconName, setIconName] = useState(CATEGORY_ICON_OPTIONS[0].value);
   const [displayOrder, setDisplayOrder] = useState("0");
@@ -57,11 +78,41 @@ export function CategoryForm(props: CategoryFormProps) {
     setSlug(category.slug);
     setSlugTouched(true);
     setDescription(category.description);
+    setImageUrl(category.imageUrl);
     setAccentColor(category.accentColor ?? DEFAULT_COLOR);
     setIconName(category.iconName);
     setDisplayOrder(String(category.displayOrder));
     setIsActive(category.isActive);
   }, [isEdit, category]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingImage) URL.revokeObjectURL(pendingImage.previewUrl);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al desmontar
+  }, []);
+
+  function handleSelectImage(file: File) {
+    if (!ALLOWED_CATEGORY_IMAGE_TYPES.includes(file.type)) {
+      setImageError("Formato no admitido. Usá PNG, JPG o WEBP.");
+      return;
+    }
+    if (file.size > MAX_CATEGORY_IMAGE_SIZE_BYTES) {
+      setImageError(`El archivo supera el límite de ${MAX_CATEGORY_IMAGE_SIZE_MB} MB.`);
+      return;
+    }
+    setImageError(null);
+    setRemoveImage(false);
+    if (pendingImage) URL.revokeObjectURL(pendingImage.previewUrl);
+    setPendingImage({ file, previewUrl: URL.createObjectURL(file) });
+  }
+
+  function handleRemoveImage() {
+    setImageError(null);
+    if (pendingImage) URL.revokeObjectURL(pendingImage.previewUrl);
+    setPendingImage(null);
+    setRemoveImage(true);
+  }
 
   useEffect(() => {
     if (!isEdit && !slugTouched && name) {
@@ -90,10 +141,25 @@ export function CategoryForm(props: CategoryFormProps) {
 
     setIsSubmitting(true);
     try {
+      /**
+       * Mismo orden que `SettingsForm.tsx` con Logo/Favicon: si hay un
+       * archivo pendiente, subirlo primero y recién después borrar el
+       * anterior (si había uno) -- nunca al revés, para no quedarse sin
+       * ninguna imagen si la subida fallara a mitad de camino.
+       */
+      let resolvedImageUrl = removeImage ? null : imageUrl;
+      if (pendingImage) {
+        resolvedImageUrl = await uploadCategoryImage(imageScopeId, pendingImage.file);
+        if (imageUrl) await deleteCategoryImageFile(imageUrl);
+      } else if (removeImage && imageUrl) {
+        await deleteCategoryImageFile(imageUrl);
+      }
+
       const input = {
         name: name.trim(),
         slug: slug.trim(),
         description: description.trim(),
+        imageUrl: resolvedImageUrl,
         accentColor,
         iconName,
         displayOrder: Number(displayOrder) || 0,
@@ -151,6 +217,14 @@ export function CategoryForm(props: CategoryFormProps) {
           onChange={(event) => setDescription(event.target.value)}
         />
       </FormField>
+
+      <CategoryImageField
+        currentUrl={removeImage ? null : imageUrl}
+        pending={pendingImage}
+        error={imageError}
+        onSelectFile={handleSelectImage}
+        onRemove={handleRemoveImage}
+      />
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
         <FormField label="Color" htmlFor="accentColor">

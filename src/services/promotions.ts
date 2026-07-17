@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { getPromotionStatus, type DiscountType, type PromotionStatus } from "@/lib/promotions";
+import { assertRowAffected } from "@/lib/supabase/assert-write";
 
 /**
  * Toda la comunicación con la tabla `promotions` vive acá -- mismo
@@ -140,12 +141,24 @@ export async function createPromotion(input: PromotionFormInput): Promise<string
 
 export async function updatePromotion(id: string, input: PromotionFormInput): Promise<void> {
   const supabase = createClient();
-  const { error } = await supabase.from("promotions").update(toRow(input)).eq("id", id);
+  const { data, error } = await supabase
+    .from("promotions")
+    .update(toRow(input))
+    .eq("id", id)
+    .select("id");
   if (error) rethrow(error);
+  assertRowAffected(
+    data,
+    "No se pudo actualizar la promoción: no tenés permisos de administrador o la promoción ya no existe."
+  );
 }
 
 export async function deletePromotion(id: string): Promise<void> {
   const supabase = createClient();
-  const { error } = await supabase.from("promotions").delete().eq("id", id);
+  const { data, error } = await supabase.from("promotions").delete().eq("id", id).select("id");
   if (error) throw new Error(error.message);
+  assertRowAffected(
+    data,
+    "No se pudo eliminar la promoción: no tenés permisos de administrador o la promoción ya no existe."
+  );
 }

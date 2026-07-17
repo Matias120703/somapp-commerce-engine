@@ -1,5 +1,6 @@
 import type { Product } from "@/config/products";
 import { createClient } from "@/lib/supabase/server";
+import { sanitizeDescriptionHtml } from "@/lib/sanitize-html";
 
 /**
  * Lectura pública de `products` (Sprint 5.3) -- usa el cliente de servidor
@@ -73,17 +74,51 @@ export async function getPublicProducts(): Promise<Product[]> {
   return (data as unknown as PublicProductRow[]).map(mapPublicProduct);
 }
 
+/**
+ * Select propio para el detalle de un producto (Sprint 6.3) -- agrega
+ * `description` (HTML enriquecido) sin tocar `PUBLIC_PRODUCT_SELECT`, que
+ * sigue siendo el que usan `getPublicProducts()`/`getPublicHeroProducts()`
+ * (Catálogo, Home, Destacados, Showcase). Traer la descripción larga en
+ * esas consultas sería innecesario -- ningún componente ahí la muestra --
+ * y potencialmente pesado si el HTML incluye imágenes/video en base64 o
+ * varios embeds; solo la página de producto, que resuelve un único
+ * producto, la necesita.
+ */
+const PUBLIC_PRODUCT_DETAIL_SELECT = `${PUBLIC_PRODUCT_SELECT}, description`;
+
+type PublicProductDetailRow = PublicProductRow & { description: string | null };
+
 export async function getPublicProductBySlug(slug: string): Promise<Product | undefined> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("products")
-    .select(PUBLIC_PRODUCT_SELECT)
+    .select(PUBLIC_PRODUCT_DETAIL_SELECT)
     .eq("slug", slug)
     .eq("is_active", true)
     .maybeSingle();
 
   if (error) throw new Error(error.message);
-  return data ? mapPublicProduct(data as unknown as PublicProductRow) : undefined;
+  if (!data) return undefined;
+
+  const row = data as unknown as PublicProductDetailRow;
+  return {
+    ...mapPublicProduct(row),
+    /**
+     * Sanitizado acá, no solo al renderizar en `ProductRichDescription.tsx`
+     * (bug real encontrado durante la verificación de este sprint): el
+     * `Product` completo se pasa como prop a Client Components de la misma
+     * página (`ProductGallery`/`ProductBuyBox`, ninguno de los dos usa
+     * `description`), y React igual serializa cada prop en el payload de
+     * RSC para la hidratación -- sin sanitizar acá, el HTML sin filtrar
+     * quedaba inerte pero visible en el código fuente de la página (nunca
+     * llegó a ejecutarse ni a insertarse en el DOM, pero tampoco debería
+     * salir del servidor en su forma cruda). Sanitizar en el límite donde
+     * el dato sale de la base -- no solo en el único lugar que lo
+     * renderiza -- es la forma correcta de garantizar que el HTML crudo
+     * nunca sale del servidor bajo ninguna forma.
+     */
+    description: row.description ? sanitizeDescriptionHtml(row.description) : undefined,
+  };
 }
 
 /**

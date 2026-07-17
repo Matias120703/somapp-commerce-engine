@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { assertRowAffected } from "@/lib/supabase/assert-write";
 
 /**
  * Toda la comunicación con la tabla `products` (y su detalle
@@ -152,14 +153,26 @@ export async function createProduct(input: ProductFormInput): Promise<string> {
 
 export async function updateProduct(id: string, input: ProductFormInput): Promise<void> {
   const supabase = createClient();
-  const { error } = await supabase.from("products").update(toRow(input)).eq("id", id);
+  const { data, error } = await supabase
+    .from("products")
+    .update(toRow(input))
+    .eq("id", id)
+    .select("id");
   if (error) throw new Error(error.message);
+  assertRowAffected(
+    data,
+    "No se pudo actualizar el producto: no tenés permisos de administrador o el producto ya no existe."
+  );
 }
 
 export async function deleteProduct(id: string): Promise<void> {
   const supabase = createClient();
-  const { error } = await supabase.from("products").delete().eq("id", id);
+  const { data, error } = await supabase.from("products").delete().eq("id", id).select("id");
   if (error) throw new Error(error.message);
+  assertRowAffected(
+    data,
+    "No se pudo eliminar el producto: no tenés permisos de administrador o el producto ya no existe."
+  );
 }
 
 export async function addProductImages(
@@ -184,6 +197,11 @@ export async function addProductImages(
 export async function deleteProductImageRows(imageIds: string[]): Promise<void> {
   if (imageIds.length === 0) return;
   const supabase = createClient();
-  const { error } = await supabase.from("product_images").delete().in("id", imageIds);
+  const { data, error } = await supabase
+    .from("product_images")
+    .delete()
+    .in("id", imageIds)
+    .select("id");
   if (error) throw new Error(error.message);
+  assertRowAffected(data, "No se pudieron eliminar las imágenes: no tenés permisos de administrador.");
 }
