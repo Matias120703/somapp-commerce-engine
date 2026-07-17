@@ -5,6 +5,8 @@ import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { ArrowRight, MessageCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ProductShowcase } from "@/components/storefront/ProductShowcase";
+import type { Product } from "@/config/products";
 import { siteConfig } from "@/config/site";
 import type { BusinessSettings } from "@/services/storefront/business";
 import { getWhatsAppUrl } from "@/lib/utils";
@@ -21,7 +23,16 @@ const item: Variants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
 };
 
-export function Hero({ settings }: { settings: BusinessSettings }) {
+export function Hero({
+  settings,
+  showcaseProducts,
+}: {
+  settings: BusinessSettings;
+  /** Productos para el Showcase del panel derecho (Sprint 6.3), resueltos
+   * por la Home vía `getPublicHeroProducts()` -- Hero no consulta
+   * Supabase, solo reenvía el array a `ProductShowcase`. */
+  showcaseProducts: Product[];
+}) {
   const shouldReduceMotion = useReducedMotion();
   const whatsappHref = getWhatsAppUrl(settings.whatsappNumber, settings.whatsappDefaultMessage);
 
@@ -81,23 +92,13 @@ export function Hero({ settings }: { settings: BusinessSettings }) {
         </div>
 
         {/*
-          Marcador visual temporal y neutro. Cuando esté la imagen real del
-          cliente, reemplazar el contenido de este div por un <Image />
-          manteniendo el mismo contenedor (aspect ratio + rounded-[2rem]).
+          Sprint 6.3: el marcador visual estático se reemplazó por un
+          Showcase dinámico de productos reales (ver ProductShowcase.tsx).
+          Mismo contenedor externo de siempre (motion.div variants={item}),
+          para no tocar el layout/stagger de entrada ya aprobado del Hero.
         */}
         <motion.div variants={item}>
-          <div className="relative aspect-[4/5] w-full overflow-hidden rounded-[2rem] border border-border bg-muted/40">
-            <div className="absolute -top-10 -left-10 size-64 rounded-full bg-foreground/5 blur-3xl" />
-            <div className="absolute -right-10 -bottom-16 size-72 rounded-full bg-foreground/10 blur-3xl" />
-            <div
-              className="absolute inset-0 text-foreground opacity-[0.15]"
-              style={{
-                backgroundImage: "radial-gradient(currentColor 1px, transparent 1px)",
-                backgroundSize: "18px 18px",
-              }}
-            />
-            <div className="absolute inset-8 rounded-3xl border border-border/60 bg-background/40 backdrop-blur-sm" />
-          </div>
+          <ProductShowcase products={showcaseProducts} />
         </motion.div>
       </motion.div>
     </section>

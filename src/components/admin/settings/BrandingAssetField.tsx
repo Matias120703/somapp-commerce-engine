@@ -14,12 +14,11 @@ export type PendingBrandingAsset = { file: File; previewUrl: string } | null;
  * (preview local vía URL.createObjectURL) y SettingsForm recién lo sube a
  * Storage al hacer submit, reemplazando/borrando el anterior si había uno.
  *
- * Sin consumidores activos desde el Sprint 6.3 (la sección "Branding" que
- * lo renderizaba se ocultó de /admin/configuracion, ver CLAUDE.md sección
- * 9, Fase 23) -- se deja el archivo tal cual, sin usarse, mismo criterio
- * que `config/products.ts`/`config/promotion.ts`: la funcionalidad sigue
- * existiendo intacta, lista para reconectarse si un sprint futuro la
- * necesita, sin haber sido tocada por ese sprint.
+ * Se ocultó de /admin/configuracion en el Sprint 6.3 (la tarjeta "Branding",
+ * ver CLAUDE.md sección 9, Fase 23) y se reconectó en el Sprint 6.5 dentro
+ * de la pestaña "Apariencia" → "Identidad Visual" (Fase 25) -- sin ningún
+ * cambio a este archivo en ninguno de los dos sprints: solo cambió qué
+ * `SettingsSection` lo renderiza.
  */
 export function BrandingAssetField({
   id,

@@ -6,20 +6,21 @@ import { PromotionalBanner } from "@/components/storefront/PromotionalBanner";
 import { TestimonialsSection } from "@/components/storefront/TestimonialsSection";
 import { getPublicBusinessSettings } from "@/services/storefront/business";
 import { getPublicCategories } from "@/services/storefront/categories";
-import { getPublicProducts } from "@/services/storefront/products";
+import { getPublicHeroProducts, getPublicProducts } from "@/services/storefront/products";
 import { getActivePromotions } from "@/services/storefront/promotions";
 
 export default async function Home() {
-  const [products, categories, settings, promotions] = await Promise.all([
+  const [products, categories, settings, promotions, showcaseProducts] = await Promise.all([
     getPublicProducts(),
     getPublicCategories(),
     getPublicBusinessSettings(),
     getActivePromotions(),
+    getPublicHeroProducts(),
   ]);
 
   return (
     <>
-      <Hero settings={settings} />
+      <Hero settings={settings} showcaseProducts={showcaseProducts} />
       <FeaturedCategories categories={categories} />
       <FeaturedProducts products={products} categories={categories} promotions={promotions} />
       <PromotionalBanner promotions={promotions} />

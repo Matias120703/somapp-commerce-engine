@@ -98,3 +98,43 @@ export async function getPublicRelatedProducts(product: Product, limit = 4): Pro
     .filter((candidate) => candidate.category === product.category && candidate.id !== product.id)
     .slice(0, limit);
 }
+
+/**
+ * Productos para el Showcase del Hero (Sprint 6.3): destacados primero
+ * -- si hay al menos uno activo, se muestran únicamente esos --, y si no
+ * hay ningún destacado, se cae a los más recientes. Nunca queda vacío
+ * mientras exista al menos un producto activo en la tienda.
+ *
+ * Consulta propia, no reutiliza getPublicProducts(): necesita ordenar por
+ * `created_at desc` (para "más recientes") y limitar la cantidad a nivel
+ * de Postgres, en vez de traer el catálogo entero y recortar en memoria
+ * -- más simple además porque `Product` (config/products.ts) no expone
+ * ninguna fecha, así que "más recientes" no se puede calcular sobre el
+ * array que ya devuelve getPublicProducts().
+ */
+export async function getPublicHeroProducts(limit = 6): Promise<Product[]> {
+  const supabase = await createClient();
+
+  const { data: featuredData, error: featuredError } = await supabase
+    .from("products")
+    .select(PUBLIC_PRODUCT_SELECT)
+    .eq("is_active", true)
+    .eq("featured", true)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (featuredError) throw new Error(featuredError.message);
+  if (featuredData.length > 0) {
+    return (featuredData as unknown as PublicProductRow[]).map(mapPublicProduct);
+  }
+
+  const { data: recentData, error: recentError } = await supabase
+    .from("products")
+    .select(PUBLIC_PRODUCT_SELECT)
+    .eq("is_active", true)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (recentError) throw new Error(recentError.message);
+  return (recentData as unknown as PublicProductRow[]).map(mapPublicProduct);
+}
