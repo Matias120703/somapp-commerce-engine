@@ -92,6 +92,7 @@ export default async function CategoryPage({
                   products={categoryProducts}
                   categories={allCategories}
                   promotions={promotions}
+                  dense
                 />
               ) : (
                 <EmptyState title={emptyState.title} description={emptyState.description} />

@@ -52,7 +52,12 @@ export default async function ProductsPage() {
             </div>
             <div className="mt-8">
               {products.length > 0 ? (
-                <ProductGrid products={products} categories={categories} promotions={promotions} />
+                <ProductGrid
+                  products={products}
+                  categories={categories}
+                  promotions={promotions}
+                  dense
+                />
               ) : (
                 <EmptyState title={emptyState.title} description={emptyState.description} />
               )}

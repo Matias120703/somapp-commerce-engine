@@ -93,6 +93,7 @@ export function CatalogResults({
             products={visibleProducts}
             categories={categories}
             promotions={promotions}
+            dense
           />
         ) : (
           <EmptyState

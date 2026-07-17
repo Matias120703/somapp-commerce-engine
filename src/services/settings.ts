@@ -173,11 +173,24 @@ export async function updateBusinessSettings(input: SettingsFormInput): Promise<
   assertRowAffected(data, "No se pudo guardar la configuración: no tenés permisos de administrador.");
 }
 
+/**
+ * Mismo bug encontrado y corregido en el Sprint 6.3.2 que
+ * `getStoragePathFromUrl`/`getCategoryImagePathFromUrl` (`services/storage.ts`):
+ * `getPublicUrl()` arma la URL con `encodeURI()`, así que un logo/favicon
+ * subido con un nombre de archivo con espacios u otros caracteres
+ * especiales quedaba con esa parte todavía percent-encoded acá -- sin
+ * `decodeURIComponent()`, `.remove([path])` buscaba un objeto con `%20`
+ * literal en el nombre, no lo encontraba, y fallaba en silencio. Esta
+ * función es la causa exacta del mensaje "No se pudo eliminar el archivo:
+ * no tenés permisos de administrador." reportado en ese sprint -- el
+ * archivo real seguía teniendo permisos correctos, la ruta que se le
+ * pedía borrar a Storage simplemente no coincidía con ningún objeto real.
+ */
 function getBrandingPathFromUrl(url: string): string | null {
   const marker = `/object/public/${BRANDING_BUCKET}/`;
   const index = url.indexOf(marker);
   if (index === -1) return null;
-  return url.slice(index + marker.length);
+  return decodeURIComponent(url.slice(index + marker.length));
 }
 
 /**
@@ -205,6 +218,13 @@ export async function uploadBrandingAsset(
   return data.publicUrl;
 }
 
+/** Limpieza de Storage tras reemplazar/quitar el logo o favicon -- efecto
+ * secundario de guardar Configuración, no la acción principal. Mismo
+ * criterio que `deleteProductImageFiles`/`deleteCategoryImageFile`
+ * (`services/storage.ts`, Sprint 6.3.2): un error real de Supabase se
+ * propaga, pero una respuesta vacía (0 archivos coincidieron) no bloquea
+ * el guardado de la configuración -- solo se registra para poder
+ * diagnosticarlo. */
 export async function deleteBrandingAsset(url: string): Promise<void> {
   const path = getBrandingPathFromUrl(url);
   if (!path) return;
@@ -212,5 +232,10 @@ export async function deleteBrandingAsset(url: string): Promise<void> {
   const supabase = createClient();
   const { data, error } = await supabase.storage.from(BRANDING_BUCKET).remove([path]);
   if (error) throw new Error(error.message);
-  assertRowAffected(data, "No se pudo eliminar el archivo: no tenés permisos de administrador.");
+  if (!data || data.length === 0) {
+    console.warn(
+      "[deleteBrandingAsset] Storage no eliminó ningún archivo (ya no existía, o la ruta no coincide). No se bloquea el guardado de la configuración.",
+      path
+    );
+  }
 }

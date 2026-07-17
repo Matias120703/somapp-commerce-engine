@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/client";
-import { assertRowAffected } from "@/lib/supabase/assert-write";
 
 const BUCKET = "product-images";
 const CONTENT_BUCKET = "product-content";
@@ -25,13 +24,40 @@ export async function uploadProductImage(productId: string, file: File): Promise
   return data.publicUrl;
 }
 
+/**
+ * `getPublicUrl()` arma la URL con `encodeURI()` (storage-js) -- un nombre
+ * de archivo con espacios u otros caracteres especiales (`file.name` se usa
+ * tal cual al subir, sin sanitizar) queda percent-encoded en la URL
+ * guardada (`... Foto Final.png` -> `...%20Foto%20Final.png`). Sin
+ * `decodeURIComponent()` acá, esta función devolvía la ruta todavía
+ * encodeada, y `.remove([path])` buscaba un objeto cuyo nombre tuviera
+ * literalmente `%20` en vez de un espacio -- no encontraba nada, fallaba
+ * en silencio (0 archivos removidos, sin error de Supabase) para
+ * cualquier imagen subida con un nombre de archivo no trivial. Bug real
+ * encontrado y corregido en el Sprint 6.3.2 -- ver CLAUDE.md sección 9.
+ */
 function getStoragePathFromUrl(url: string): string | null {
   const marker = `/object/public/${BUCKET}/`;
   const index = url.indexOf(marker);
   if (index === -1) return null;
-  return url.slice(index + marker.length);
+  return decodeURIComponent(url.slice(index + marker.length));
 }
 
+/**
+ * Limpieza de Storage tras reemplazar/quitar una imagen de producto --
+ * efecto secundario de guardar el formulario, no la acción principal que
+ * pidió el admin. Si Supabase devuelve un error real (RLS, red), se
+ * propaga: hay algo genuinamente mal y el admin debe enterarse. Pero si la
+ * respuesta viene vacía (0 archivos coincidieron -- ya borrado antes,
+ * URL con una ruta que no matchea, o cualquier otra causa ambigua), NO se
+ * bloquea el guardado del producto por un archivo húerfano en Storage: el
+ * costo de un archivo de más en el bucket es mínimo, bloquear a un admin
+ * de guardar su producto por eso no lo es. Se deja un `console.warn` para
+ * poder diagnosticarlo (pedido explícito del Sprint 6.3.2), sin interrumpir
+ * el flujo -- distinto criterio que `deleteProduct()`/`deleteCategory()`
+ * (la eliminación completa del registro, que sigue siendo bloqueante: ahí
+ * si el admin pide "Eliminar" y no pasa nada, tiene que saberlo).
+ */
 export async function deleteProductImageFiles(urls: string[]): Promise<void> {
   const paths = urls
     .map(getStoragePathFromUrl)
@@ -42,7 +68,12 @@ export async function deleteProductImageFiles(urls: string[]): Promise<void> {
   const supabase = createClient();
   const { data, error } = await supabase.storage.from(BUCKET).remove(paths);
   if (error) throw new Error(error.message);
-  assertRowAffected(data, "No se pudieron eliminar las imágenes: no tenés permisos de administrador.");
+  if (!data || data.length === 0) {
+    console.warn(
+      "[deleteProductImageFiles] Storage no eliminó ningún archivo (ya no existía, o la ruta no coincide). No se bloquea el guardado del producto.",
+      paths
+    );
+  }
 }
 
 /**
@@ -97,13 +128,17 @@ export async function uploadCategoryImage(categoryId: string, file: File): Promi
   return data.publicUrl;
 }
 
+/** Mismo bug/misma corrección que `getStoragePathFromUrl` -- ver el
+ * comentario ahí para el detalle completo. */
 function getCategoryImagePathFromUrl(url: string): string | null {
   const marker = `/object/public/${CATEGORY_BUCKET}/`;
   const index = url.indexOf(marker);
   if (index === -1) return null;
-  return url.slice(index + marker.length);
+  return decodeURIComponent(url.slice(index + marker.length));
 }
 
+/** Mismo criterio que `deleteProductImageFiles`: limpieza de Storage, no
+ * bloqueante -- ver ese comentario para el razonamiento completo. */
 export async function deleteCategoryImageFile(url: string): Promise<void> {
   const path = getCategoryImagePathFromUrl(url);
   if (!path) return;
@@ -111,5 +146,10 @@ export async function deleteCategoryImageFile(url: string): Promise<void> {
   const supabase = createClient();
   const { data, error } = await supabase.storage.from(CATEGORY_BUCKET).remove([path]);
   if (error) throw new Error(error.message);
-  assertRowAffected(data, "No se pudo eliminar la imagen de la categoría: no tenés permisos de administrador.");
+  if (!data || data.length === 0) {
+    console.warn(
+      "[deleteCategoryImageFile] Storage no eliminó ningún archivo (ya no existía, o la ruta no coincide). No se bloquea el guardado de la categoría.",
+      path
+    );
+  }
 }

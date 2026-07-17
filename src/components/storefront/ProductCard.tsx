@@ -21,6 +21,7 @@ export function ProductCard({
   categories,
   promotions,
   className,
+  dense,
 }: {
   product: Product;
   /** Resuelta desde Supabase por la página que renderiza esta grilla
@@ -33,6 +34,16 @@ export function ProductCard({
   promotions: PublicPromotion[];
   /** Clases de layout que decide el contenedor (carrusel, grilla, etc). */
   className?: string;
+  /**
+   * Sprint 6.4.1: reenviado por `ProductGrid` cuando el catálogo pide 2
+   * columnas en mobile -- padding/gaps más chicos, título a 2 líneas
+   * (en vez de 1) y un `sizes` de `next/image` ajustado a una tarjeta más
+   * angosta. Sin este prop (Productos Relacionados en la página
+   * individual, protegida este sprint, y el carrusel de la Home, que ni
+   * siquiera pasa por `ProductGrid`), la tarjeta se ve exactamente igual
+   * que antes de este sprint -- cero cambio de píxeles.
+   */
+  dense?: boolean;
 }) {
   const category = categories.find((c) => c.slug === product.category);
   const displayPrice = getProductDisplayPrice(product, promotions);
@@ -95,7 +106,11 @@ export function ProductCard({
                 src={primaryImage!}
                 alt={product.name}
                 fill
-                sizes="(min-width: 1024px) 25vw, (min-width: 768px) 50vw, 100vw"
+                sizes={
+                  dense
+                    ? "(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
+                    : "(min-width: 1024px) 25vw, (min-width: 768px) 50vw, 100vw"
+                }
                 className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.06]"
                 onError={() => setImageFailed(true)}
               />
@@ -127,7 +142,12 @@ export function ProductCard({
               </>
             )}
 
-            <div className="absolute top-2.5 left-2.5 flex flex-col items-start gap-1.5">
+            <div
+              className={cn(
+                "absolute flex flex-col items-start",
+                dense ? "top-1.5 left-1.5 gap-1" : "top-2.5 left-2.5 gap-1.5"
+              )}
+            >
               {displayPrice.badgeVariant === "discount" ? (
                 <Badge className="shadow-sm">{displayPrice.badgeLabel}</Badge>
               ) : displayPrice.badgeVariant === "info" ? (
@@ -149,16 +169,29 @@ export function ProductCard({
             </div>
           </div>
 
-          <div className="flex flex-1 flex-col gap-1.5 p-3 pb-2 sm:p-4 sm:pb-2">
+          <div
+            className={cn(
+              "flex flex-1 flex-col",
+              dense ? "gap-1 p-2 pb-1.5 sm:p-3 sm:pb-2" : "gap-1.5 p-3 pb-2 sm:p-4 sm:pb-2"
+            )}
+          >
             <h3
-              className="line-clamp-1 text-sm font-medium text-foreground sm:text-base"
+              className={cn(
+                "font-medium text-foreground",
+                dense ? "line-clamp-2 text-sm" : "line-clamp-1 text-sm sm:text-base"
+              )}
               title={product.name}
             >
               {product.name}
             </h3>
 
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-base font-semibold text-foreground sm:text-lg">
+            <div className={cn("flex items-baseline", dense ? "gap-1" : "gap-1.5")}>
+              <span
+                className={cn(
+                  "font-semibold text-foreground",
+                  dense ? "text-sm sm:text-base" : "text-base sm:text-lg"
+                )}
+              >
                 {formatPrice(displayPrice.price)}
               </span>
               {displayPrice.compareAtPrice ? (
@@ -170,7 +203,7 @@ export function ProductCard({
           </div>
         </Link>
 
-        <div className="px-3 pb-3 sm:px-4 sm:pb-4">
+        <div className={dense ? "px-2 pb-2 sm:px-3 sm:pb-3" : "px-3 pb-3 sm:px-4 sm:pb-4"}>
           <Button
             size="sm"
             disabled={outOfStock}
